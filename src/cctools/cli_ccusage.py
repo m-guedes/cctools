@@ -11,12 +11,15 @@ Org ID from ``--org`` or ``$CLAUDE_ORG_ID``.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
 
 from cctools.jar import load
 from cctools.usage import fetch, render
+
+_FORMATS = ("table", "json")
 
 _STDIN = Path("/dev/stdin")
 
@@ -34,7 +37,8 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    print(render(fetch(org, load(source))))
+    payload = fetch(org, load(source))
+    print(json.dumps(payload) if args.format == "json" else render(payload))
     return 0
 
 
@@ -46,6 +50,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="Netscape cookie jar (default: $CLAUDE_COOKIE_JAR, else stdin)",
     )
     parser.add_argument("--org", help="Claude organization ID (default: $CLAUDE_ORG_ID)")
+    parser.add_argument(
+        "--format",
+        choices=_FORMATS,
+        default="table",
+        help="output format (default: table)",
+    )
     return parser.parse_args(argv)
 
 
