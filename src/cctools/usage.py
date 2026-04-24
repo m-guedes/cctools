@@ -3,6 +3,8 @@
 The endpoint is the internal JSON call the console's usage page makes:
 `https://claude.ai/api/organizations/<org>/usage`. It is unversioned and can
 change without notice, so this module stays deliberately small.
+
+See ``docs/endpoint.org`` for the full reverse-engineered reference.
 """
 
 from __future__ import annotations

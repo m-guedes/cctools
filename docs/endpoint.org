@@ -1,0 +1,129 @@
+#+TITLE: Claude Usage Endpoint Reference
+#+OPTIONS: toc:nil num:nil
+
+This document records the undocumented JSON endpoint that backs the Claude console's usage page. It
+is the ground truth the ~cctools.usage~ module parses. If the endpoint changes, update this file
+alongside the parser.
+
+* Request
+
+#+BEGIN_SRC http
+GET /api/organizations/<ORG_ID>/usage HTTP/3
+Host: claude.ai
+#+END_SRC
+
+** Headers
+
+The backend gates on two things: a browser-shaped TLS fingerprint (enforced by Cloudflare); and a
+~anthropic-client-platform~ header. The rest of the headers a real browser sends are not required,
+but sending them costs nothing and hardens us against future tightening.
+
+*** Required
+
+| Header                      | Purpose                                                   |
+|-----------------------------+-----------------------------------------------------------|
+| ~Cookie~                    | Session auth; ~sessionKey~ is the important one.          |
+| ~anthropic-client-platform~ | Must be ~web_claude_ai~; non-browser clients get ~403~.   |
+| TLS fingerprint             | Must match a real Firefox/Chrome. Plain Python ~requests~ |
+|                             | fails the Cloudflare challenge even with valid cookies;   |
+|                             | we use ~curl_cffi~ with ~impersonate="firefox135"~.       |
+
+*** Sent defensively
+
+~User-Agent~, ~Accept~, ~Accept-Language~, ~Referer~. Not known to be
+checked, but the backend is free to tighten at any time and these are
+free to include.
+
+*** Observed in the browser but /not/ sent
+
+| Header                                                  | Why skipped                    |
+|---------------------------------------------------------+--------------------------------|
+| ~anthropic-anonymous-id~, ~anthropic-device-id~         | Per-install tokens; not gated. |
+| ~anthropic-client-sha~, ~anthropic-client-version~      | Will drift; would rot fast.    |
+| ~x-activity-session-id~                                 | Per-tab; not gated.            |
+| ~Sec-Fetch-*~, ~DNT~, ~Sec-GPC~, ~Priority~, ~Alt-Used~ | Browser hints; not gated.      |
+| ~Cache-Control~, ~Pragma~                               | Client-side cache controls.    |
+| ~Accept-Encoding~                                       | ~curl_cffi~ handles encoding.  |
+
+* Response
+
+Representative payload from a Pro/Max individual account (captured 2026-04-24):
+
+#+BEGIN_SRC json
+{
+  "five_hour": {
+    "utilization": 23.0,
+    "resets_at": "2026-04-25T00:30:00.998962+00:00"
+  },
+  "seven_day": {
+    "utilization": 24.0,
+    "resets_at": "2026-04-28T03:00:00.998985+00:00"
+  },
+  "seven_day_oauth_apps": null,
+  "seven_day_opus": null,
+  "seven_day_sonnet": {
+    "utilization": 1.0,
+    "resets_at": "2026-04-28T02:59:59.998992+00:00"
+  },
+  "seven_day_cowork": null,
+  "seven_day_omelette": { "utilization": 0.0, "resets_at": null },
+  "iguana_necktie": null,
+  "omelette_promotional": null,
+  "extra_usage": {
+    "is_enabled": false,
+    "monthly_limit": null,
+    "used_credits": null,
+    "utilization": null,
+    "currency": null
+  }
+}
+#+END_SRC
+
+** Field semantics
+
+*** Window blocks
+
+Each non-null window block has the shape: ~{utilization: float, resets_at: ISO-8601 | null}~.
+
+~utilization~ is a percentage in ~[0, 100]~. ~resets_at~ of ~null~ means "no active window yet".
+
+| Key                    | Meaning                                          |
+|------------------------+--------------------------------------------------|
+| ~five_hour~            | Rolling 5-hour rate-limit window.                |
+| ~seven_day~            | Rolling 7-day overall window.                    |
+| ~seven_day_sonnet~     | 7-day Sonnet-specific sub-quota.                 |
+| ~seven_day_opus~       | 7-day Opus-specific sub-quota.                   |
+| ~seven_day_oauth_apps~ | 7-day quota for OAuth-app traffic.               |
+| ~seven_day_cowork~     | Cowork (team/org) 7-day quota.                   |
+| ~seven_day_omelette~   | Purpose unknown; codename. Present as a zeroed   |
+|                        | block on individual plans.                       |
+| ~iguana_necktie~       | Purpose unknown; codename. Always ~null~ so far. |
+| ~omelette_promotional~ | Promotional variant of ~omelette~. Always ~null~ |
+|                        | so far.                                          |
+
+Null top-level blocks mean "not applicable to this plan" or "no usage in this window yet". The
+renderer skips them rather than printing blanks.
+
+*** ~extra_usage~
+
+Pay-as-you-go overage bucket. Distinct shape from the window blocks.  ~is_enabled: false~ means the
+account has not opted in; render the row only when enabled.
+
+| Field           | Type              | Notes                                   |
+|-----------------+-------------------+-----------------------------------------|
+| ~is_enabled~    | bool              | Opt-in gate.                            |
+| ~monthly_limit~ | float \vert null  | Cap in account currency.                |
+| ~used_credits~  | float \vert null  | Consumed in the current month.          |
+| ~utilization~   | float \vert null  | Percentage of ~monthly_limit~ consumed. |
+| ~currency~      | string \vert null | ISO-4217.                               |
+
+* Stability caveats
+
+- The endpoint is internal and unversioned; any field may be renamed, added, or removed without
+  notice.
+- Codename keys (~omelette~, ~iguana_necktie~) are the clearest signal that the shape is not a
+  committed contract, and should be treated as hints of in-flight product work.
+- Cloudflare fingerprinting rules change; expect to bump the ~curl_cffi~ impersonation target
+  periodically.
+- Cookies expire. On ~403~ with a valid-looking jar, the first thing to check is whether
+  ~sessionKey~ is still live in the browser.
