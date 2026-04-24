@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DRY_RUN=0
+VERBOSE=0
+MAX_DEPTH=2
+AGE_MINUTES=60
+
+usage() {
+    echo "Usage: $0 [-n] [-v] [-d depth]"
+    echo "  -n        Dry run (show what would be removed)"
+    echo "  -v        Verbose output"
+    echo "  -d depth  Max directory depth to search (default: $MAX_DEPTH)"
+    exit 1
+}
+
+while getopts "nvd:" opt; do
+    case $opt in
+        n) DRY_RUN=1 ;;
+        v) VERBOSE=1 ;;
+        d) MAX_DEPTH=$OPTARG ;;
+        *) usage ;;
+    esac
+done
+
+# Active Unix socket paths reported by the kernel.
+active_sockets=$(ss -xl 2>/dev/null | awk 'NR>1 {print $5}' | grep '^/' | sort)
+
+pid_alive() {
+    kill -0 "$1" 2>/dev/null
+}
+
+# Prints the PID embedded after $prefix in $name, or nothing.
+extract_pid() {
+    local name="$1" prefix="$2"
+    if [[ "$name" =~ ^${prefix}([0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    fi
+}
+
+socket_active() {
+    local socket="$1"
+    if echo "$active_sockets" | grep -qF "$socket"; then
+        return 0
+    fi
+    local pid
+    pid=$(extract_pid "$(basename "$socket")" 'dotnet-diagnostic-')
+    if [[ -n "$pid" ]] && pid_alive "$pid"; then
+        return 0
+    fi
+    return 1
+}
+
+removed=0
+skipped=0
+
+remove_path() {
+    local path="$1" reason="$2"
+    if [[ $DRY_RUN -eq 1 ]]; then
+        echo "WOULD REMOVE ($reason): $path"
+    else
+        [[ $VERBOSE -eq 1 ]] && echo "REMOVING ($reason): $path"
+        rm -rf -- "$path"
+    fi
+    ((removed++)) || true
+}
+
+skip_path() {
+    local path="$1" reason="$2"
+    [[ $VERBOSE -eq 1 ]] && echo "SKIP ($reason): $path"
+    ((skipped++)) || true
+}
+
+# Sockets anywhere under /tmp, activity-gated.
+while IFS= read -r socket; do
+    if socket_active "$socket"; then
+        skip_path "$socket" "active socket"
+    else
+        remove_path "$socket" "stale socket"
+    fi
+done < <(find /tmp -maxdepth "$MAX_DEPTH" -type s 2>/dev/null | sort)
+
+# CoreCLR debug pipes: clr-debug-pipe-<pid>-..., PID-gated.
+while IFS= read -r pipe; do
+    pid=$(extract_pid "$(basename "$pipe")" 'clr-debug-pipe-')
+    if [[ -n "$pid" ]] && pid_alive "$pid"; then
+        skip_path "$pipe" "pid $pid alive"
+    else
+        remove_path "$pipe" "stale clr-debug-pipe"
+    fi
+done < <(find /tmp -maxdepth "$MAX_DEPTH" -type p -name 'clr-debug-pipe-*' 2>/dev/null | sort)
+
+# MSBuild directories: MSBuild<pid>* PID-gated; MSBuildTemp* age-gated (>AGE_MINUTES of idleness).
+while IFS= read -r dir; do
+    base=$(basename "$dir")
+    if [[ "$base" == MSBuildTemp* ]]; then
+        if find "$dir" -mmin -"$AGE_MINUTES" -print -quit 2>/dev/null | grep -q .; then
+            skip_path "$dir" "MSBuildTemp active within ${AGE_MINUTES}m"
+        else
+            remove_path "$dir" "MSBuildTemp idle >${AGE_MINUTES}m"
+        fi
+    else
+        pid=$(extract_pid "$base" 'MSBuild')
+        if [[ -z "$pid" ]]; then
+            skip_path "$dir" "MSBuild dir without PID"
+        elif pid_alive "$pid"; then
+            skip_path "$dir" "pid $pid alive"
+        else
+            remove_path "$dir" "stale MSBuild dir"
+        fi
+    fi
+done < <(find /tmp -maxdepth "$MAX_DEPTH" -type d -name 'MSBuild*' -prune 2>/dev/null | sort)
+
+if [[ $DRY_RUN -eq 1 ]]; then
+    echo "Dry run: $removed items would be removed, $skipped active items kept."
+else
+    echo "Done: $removed items removed, $skipped active items kept."
+fi
