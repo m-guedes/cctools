@@ -1,0 +1,8 @@
+# Directories
+.coverage
+
+*.egg-info
+
+# Files
+.env
+.~*
