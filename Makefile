@@ -17,3 +17,11 @@ fmt:
 .PHONY: test
 test:
 	uv run pytest tests/ --cov=src/ --cov-report=term-missing
+
+.PHONY: install
+install:
+	uv tool install .
+
+.PHONY: uninstall
+uninstall:
+	uv tool uninstall cctools
