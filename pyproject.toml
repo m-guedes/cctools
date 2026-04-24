@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cctools"
+version = "0.1.0"
+requires-python = ">=3.11"      # Keep synchronized with .python-version
+dependencies = [
+    "browser-cookie3",
+    "curl-cffi>=0.15.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipython",
+    "isort",                    # Required by Emacs tooling
+    "mypy",
+    "pre-commit",
+    "pyflakes",                 # Required by Emacs tooling
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "ruff",
+]
+
+[project.scripts]
+ccookies = "cctools.cli_ccookies:main"
+ccusage = "cctools.cli_ccusage:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+
+[tool.ruff]
+line-length = 100
+
+lint.extend-select = [
+    "I",     # isort: import sorting rules (ensures consistent ordering of imports)
+    "E",     # pycodestyle (errors): style guide enforcement (PEP8)
+    "W",     # pycodestyle (warnings): style guide warnings
+    "F",     # pyflakes: detects logical errors like undefined or unused variables
+    "B",     # flake8-bugbear: finds likely bugs and best practice violations (e.g., mutable default args)
+    "C90",   # mccabe: checks for overly complex code (cyclomatic complexity)
+    # "D",   # pydocstyle: enforces docstring conventions
+    "N",     # pep8-naming: ensures proper naming conventions
+    "UP",    # pyupgrade: suggests syntax upgrades to modern Python versions
+    "SIM",   # flake8-simplify: flags unnecessary or redundant code
+    "PERF",  # perflint: highlights performance anti-patterns
+    "S",     # flake8-bandit: security issue detection
+    "A",     # flake8-builtins: prevents shadowing Python built-in names
+    "C4",    # flake8-comprehensions: Suggests better list/dict/set comprehensions
+    "T10",   # flake8-debugger: detects leftover debugger statements
+    "RUF",   # ruff-specific: additional Ruff-specific rules and fixes
+]
+lint.ignore = [
+    "N818",     # Exception naming: don't require *Error suffix
+]
+lint.per-file-ignores."tests/**" = [
+    "S101",                     # assert is standard in pytest
+]
+fix = true  # Auto-fix applicable lint issues
+
+[tool.mypy]
+python_version = "3.11"         # Keep synchronized with .python-version
+check_untyped_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+strict_optional = true
+
+[tool.coverage.run]
+branch = true
+source = []
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.coverage.html]
+directory = "htmlcov"
