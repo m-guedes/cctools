@@ -65,13 +65,16 @@ TMP_ROOTS+=(/tmp/sandbox-tmp)        # another TMPDIR to sweep for .NET litter
 SCRATCH_GLOBS+=("/tmp/myproject-*")  # more trees to remove once idle
 #+END_SRC
 
-To run it hourly, link the script into =~/.local/bin= (where the unit expects it) and install the systemd user timer:
+To run it hourly, link the script into =~/.local/bin= (where the unit expects it) and link the systemd user units in place, so edits in the checkout take effect without reinstalling:
 
 #+BEGIN_SRC sh
+mkdir -p ~/.local/bin
 ln -s "$PWD/sh/ccleanup" ~/.local/bin/ccleanup
-cp sh/ccleanup.service sh/ccleanup.timer ~/.config/systemd/user/
-systemctl --user daemon-reload && systemctl --user enable --now ccleanup.timer
+systemctl --user link "$PWD/sh/ccleanup.service"
+systemctl --user enable --now "$PWD/sh/ccleanup.timer"
 #+END_SRC
+
+The timer starts the service by name, so the service must be linked even though only the timer is enabled. Moving or deleting the checkout breaks the links; ~systemctl --user disable --now ccleanup.timer ccleanup.service~ removes them.
 
 User timers only run while you are logged in, unless lingering is on (~loginctl enable-linger~).
 
