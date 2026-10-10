@@ -98,24 +98,38 @@ held() {
 }
 
 # True if anything under $1 was modified or created within the last $2 minutes.  ctime matters:
-# copies (e.g. dotnet publish) can carry old mtimes.
+# copies (e.g. dotnet publish) can carry old mtimes. Tested via substitution rather than a pipe so
+# that pipefail cannot let a permission error in find mask a match.
 recently_touched() {
-    find "$1" \( -mmin -"$2" -o -cmin -"$2" \) -print -quit 2>/dev/null | grep -q .
+    [[ -n $(find "$1" \( -mmin -"$2" -o -cmin -"$2" \) -print -quit 2>/dev/null) ]]
+}
+
+# Formats a KiB count for humans, e.g. 1.5G.
+human_kb() {
+    numfmt --to=iec --from-unit=1024 "$1"
 }
 
 removed=0
 skipped=0
+failed=0
 freed_kb=0
 
+# Removes $1, crediting its size in KiB ($3) to freed_kb on success. A failed removal (read-only
+# tree, another user's entry) is reported and counted instead of aborting the sweep.
 remove_path() {
-    local path="$1" reason="$2"
+    local path="$1" reason="$2" kb="${3:-0}"
     if [[ $DRY_RUN -eq 1 ]]; then
         echo "WOULD REMOVE ($reason): $path"
     else
         [[ $VERBOSE -eq 1 ]] && echo "REMOVING ($reason): $path"
-        rm -rf -- "$path"
+        if ! rm -rf -- "$path" 2>/dev/null; then
+            echo "FAILED ($reason): $path" >&2
+            ((failed++)) || true
+            return 0
+        fi
     fi
     ((removed++)) || true
+    freed_kb=$((freed_kb + kb))
 }
 
 skip_path() {
@@ -147,7 +161,7 @@ done < <(find /tmp -maxdepth "$MAX_DEPTH" -type p -name 'clr-debug-pipe-*' 2>/de
 while IFS= read -r dir; do
     base=$(basename "$dir")
     if [[ "$base" == MSBuildTemp* ]]; then
-        if find "$dir" -mmin -"$AGE_MINUTES" -print -quit 2>/dev/null | grep -q .; then
+        if recently_touched "$dir" "$AGE_MINUTES"; then
             skip_path "$dir" "MSBuildTemp active within ${AGE_MINUTES}m"
         else
             remove_path "$dir" "MSBuildTemp idle >${AGE_MINUTES}m"
@@ -191,16 +205,18 @@ for pattern in "${SCRATCH_GLOBS[@]}"; do
         elif held "$path"; then
             skip_path "$path" "scratch held by a live process"
         else
-            kb=$(du -sk -- "$path" 2>/dev/null | cut -f1)
-            freed_kb=$((freed_kb + ${kb:-0}))
-            remove_path "$path" "scratch idle >${SCRATCH_DAYS}d, $((${kb:-0} / 1024))M"
+            # du exits non-zero on unreadable subdirectories but still prints a lower-bound total.
+            kb=$(du -sk -- "$path" 2>/dev/null | cut -f1) || true
+            kb=${kb:-0}
+            remove_path "$path" "scratch idle >${SCRATCH_DAYS}d, $(human_kb "$kb")" "$kb"
         fi
     done
 done
 
-freed="$((freed_kb / 1048576))G from scratch trees"
+freed="$(human_kb "$freed_kb") from scratch trees"
 if [[ $DRY_RUN -eq 1 ]]; then
     echo "Dry run: $removed items would be removed ($freed), $skipped active items kept."
 else
-    echo "Done: $removed items removed ($freed), $skipped active items kept."
+    echo "Done: $removed items removed ($freed), $skipped active items kept, $failed failed."
+    [[ $failed -eq 0 ]] || exit 1
 fi
