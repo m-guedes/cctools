@@ -34,8 +34,6 @@ where = ["src"]
 [tool.setuptools.package-data]
 
 [tool.ruff]
-line-length = 100
-
 lint.extend-select = [
     "I",     # isort: import sorting rules (ensures consistent ordering of imports)
     "E",     # pycodestyle (errors): style guide enforcement (PEP8)
