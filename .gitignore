@@ -1,9 +1,9 @@
 # Directories
-.coverage
 build
 
 *.egg-info
 
 # Files
+.coverage
 .env
 .~*
