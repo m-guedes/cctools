@@ -16,7 +16,6 @@ dev = [
     "ipython",
     "isort",                    # Required by Emacs tooling
     "mypy",
-    "pre-commit",
     "pyflakes",                 # Required by Emacs tooling
     "pytest",
     "pytest-cov",
