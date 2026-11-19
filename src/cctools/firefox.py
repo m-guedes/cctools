@@ -24,14 +24,18 @@ class ProfileError(LookupError):
 
 def load_claude_cookies(profile: str) -> CookieJar:
     cookie_db = _resolve_cookie_db(profile)
-    return browser_cookie3.firefox(cookie_file=str(cookie_db), domain_name=_CLAUDE_DOMAIN)
+    return browser_cookie3.firefox(
+        cookie_file=str(cookie_db), domain_name=_CLAUDE_DOMAIN
+    )
 
 
 def _resolve_cookie_db(profile: str) -> Path:
     profiles = _read_profiles()
     matches = [(name, path) for name, path in profiles.items() if profile in name]
     if not matches:
-        raise ProfileError(f"no Firefox profile matching '{profile}'. Known: {sorted(profiles)}")
+        raise ProfileError(
+            f"no Firefox profile matching '{profile}'. Known: {sorted(profiles)}"
+        )
     if len(matches) > 1:
         raise ProfileError(f"ambiguous profile '{profile}': {[n for n, _ in matches]}")
     return FIREFOX_ROOT / matches[0][1] / "cookies.sqlite"

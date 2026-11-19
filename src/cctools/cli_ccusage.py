@@ -33,7 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     source = _cookie_source(args.cookies)
     if source is None:
         print(
-            "error: provide --cookies PATH, set $CLAUDE_COOKIE_JAR, or pipe a jar on stdin",
+            "error: provide --cookies PATH, set $CLAUDE_COOKIE_JAR,"
+            " or pipe a jar on stdin",
             file=sys.stderr,
         )
         return 2
@@ -49,7 +50,9 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         type=Path,
         help="Netscape cookie jar (default: $CLAUDE_COOKIE_JAR, else stdin)",
     )
-    parser.add_argument("--org", help="Claude organization ID (default: $CLAUDE_ORG_ID)")
+    parser.add_argument(
+        "--org", help="Claude organization ID (default: $CLAUDE_ORG_ID)"
+    )
     parser.add_argument(
         "--format",
         choices=_FORMATS,

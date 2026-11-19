@@ -23,7 +23,9 @@ _TIMEOUT_S = 15
 # the gating check, but a browser-shaped User-Agent and Referer are included
 # defensively since the backend is free to tighten at any time.
 _BROWSER_HEADERS = {
-    "User-Agent": ("Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0"),
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0"
+    ),
     "Accept": "*/*",
     "Accept-Language": "en-US,en;q=0.9",
     "Referer": "https://claude.ai/settings/usage",
@@ -69,7 +71,8 @@ def rows(payload: dict[str, Any]) -> list[UsageRow]:
 
 def render(payload: dict[str, Any]) -> str:
     return "\n".join(
-        f"{r.label:<20} {r.utilization:>5.1f}%   resets {r.resets_at or '-'}" for r in rows(payload)
+        f"{r.label:<20} {r.utilization:>5.1f}%   resets {r.resets_at or '-'}"
+        for r in rows(payload)
     )
 
 
