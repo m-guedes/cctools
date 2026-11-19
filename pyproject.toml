@@ -58,18 +58,21 @@ lint.ignore = [
 lint.per-file-ignores."tests/**" = [
     "S101",                     # assert is standard in pytest
 ]
-fix = true  # Auto-fix applicable lint issues
 
 [tool.mypy]
+files = ["src"]
 python_version = "3.11"         # Keep synchronized with .python-version
 check_untyped_defs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
 strict_optional = true
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.coverage.run]
 branch = true
-source = []
+source = ["cctools"]
 
 [tool.coverage.report]
 show_missing = true
