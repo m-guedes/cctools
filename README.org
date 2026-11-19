@@ -5,8 +5,6 @@
 
 ~cctools~ scrapes the Claude console's internal usage endpoint so that Pro/Max subscribers can read their rate-limit utilization (5-hour and 7-day windows) from the command line. Authentication is by browser session cookie.
 
-The repository also ships ~ccleanup~, a janitor for the =/tmp= litter that Claude Code sessions and .NET builds leave behind.
-
 * Design
 
 Two composable CLIs connected by a Netscape cookie jar on disk or stdio:
@@ -41,42 +39,6 @@ All inputs are CLI flags or environment variables:
 |---------------------+-----------------------------------------|
 | ~CLAUDE_ORG_ID~     | Default ~--org~ for ~ccusage~.          |
 | ~CLAUDE_COOKIE_JAR~ | Default ~--cookies~ path for ~ccusage~. |
-
-* ~ccleanup~
-
-~sh/ccleanup~ removes the litter that Claude Code sessions and .NET builds leave in =/tmp=. Every rule is gated on liveness or idle time:
-
-| What                                                  | Removed when                             |
-|-------------------------------------------------------+------------------------------------------|
-| Unix sockets, ~clr-debug-pipe-*~, ~MSBuild<pid>~ dirs | no live owner in any namespace           |
-| ~MSBuildTemp*~ dirs, NuGet ~CASESENSITIVETEST*~ files | idle for 60 minutes                      |
-| Empty ~XXXXXX~ dirs left by the .NET SDK              | idle for 24 hours                        |
-| Claude Code session trees (~claude-$UID/*/*~)         | idle for 3 days (~-s~) and not held open |
-
-#+BEGIN_SRC sh
-ccleanup -n -v   # dry run: show what would be removed and why
-ccleanup -s 7    # keep session trees for a week
-#+END_SRC
-
-Machine-specific paths go in =~/.config/ccleanup.conf=, which is sourced as Bash if it exists:
-
-#+BEGIN_SRC sh
-TMP_ROOTS+=(/tmp/sandbox-tmp)        # another TMPDIR to sweep for .NET litter
-SCRATCH_GLOBS+=("/tmp/myproject-*")  # more trees to remove once idle
-#+END_SRC
-
-To run it hourly, link the script into =~/.local/bin= (where the unit expects it) and link the systemd user units in place, so edits in the checkout take effect without reinstalling:
-
-#+BEGIN_SRC sh
-mkdir -p ~/.local/bin
-ln -s "$PWD/sh/ccleanup" ~/.local/bin/ccleanup
-systemctl --user link "$PWD/sh/ccleanup.service"
-systemctl --user enable --now "$PWD/sh/ccleanup.timer"
-#+END_SRC
-
-The timer starts the service by name, so the service must be linked even though only the timer is enabled. Moving or deleting the checkout breaks the links; ~systemctl --user disable --now ccleanup.timer ccleanup.service~ removes them.
-
-User timers only run while you are logged in, unless lingering is on (~loginctl enable-linger~).
 
 * Limitations
 
