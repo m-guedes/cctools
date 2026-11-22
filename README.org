@@ -5,15 +5,6 @@
 
 ~cctools~ scrapes the Claude console's internal usage endpoint so that Pro/Max subscribers can read their rate-limit utilization (5-hour and 7-day windows) from the command line. Authentication is by browser session cookie.
 
-* Design
-
-Two composable CLIs connected by a Netscape cookie jar on disk or stdio:
-
-- ~ccookies~ extracts cookies from a browser profile and writes a Netscape jar.
-- ~ccusage~ loads a jar and fetches usage.
-
-The jar format is the same one curl's ~-b~ / ~-c~ flags speak, so the two tools are independently usable and debuggable with standard Unix plumbing.
-
 * Usage
 
 #+BEGIN_SRC sh
@@ -42,7 +33,7 @@ All inputs are CLI flags or environment variables:
 
 * Limitations
 
-The endpoint is internal and unversioned; Anthropic can rename fields or tighten the request shape without notice. Cloudflare fingerprinting means plain ~requests~ cannot reach the endpoint even with valid cookies. ~cctools~ uses ~curl_cffi~ to impersonate a real Firefox TLS handshake, and the impersonation target will need periodic bumps.
+The endpoint is internal to Anthropic and unversioned. Cloudflare fingerprinting means plain ~requests~ cannot reach the endpoint even with valid cookies. ~cctools~ uses ~curl_cffi~ to impersonate a real Firefox TLS handshake, and the impersonation target will need periodic bumps.
 
 Currently only Firefox (Linux) is supported for cookie extraction.
 
