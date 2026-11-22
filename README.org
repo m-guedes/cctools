@@ -7,6 +7,8 @@
 
 * Usage
 
+Start by determining your Claude account identifier in DevTools on https://claude.ai/settings/usage; it is the UUID in the request URL. Use it explicitly as a value to ~--org~ in commands below or assign it to the ~CLAUDE_ORG_ID~ env var.
+
 #+BEGIN_SRC sh
 # One-shot: extract and fetch in a single pipeline.
 ccookies firefox --profile personal | ccusage --org $CLAUDE_ORG_ID
@@ -20,7 +22,7 @@ ccusage --cookies ~/.cache/claude/cookies.txt --format json \
   | jq '.five_hour.utilization'
 #+END_SRC
 
-~ccusage~ reads cookies from, in priority order: ~--cookies PATH~, ~$CLAUDE_COOKIE_JAR~, or stdin. The org ID comes from ~--org~ or ~$CLAUDE_ORG_ID~; find it in DevTools on https://claude.ai/settings/usage; it is the UUID in the request URL.
+~ccusage~ reads cookies from, in priority order: ~--cookies PATH~, ~$CLAUDE_COOKIE_JAR~, or stdin. The org ID comes from ~--org~ or ~$CLAUDE_ORG_ID~.
 
 * Configuration
 
