@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cctools"
 version = "0.1.0"
-requires-python = ">=3.11"      # Keep synchronized with .python-version
+requires-python = ">=3.11"
 dependencies = [
     "browser-cookie3",
     "curl-cffi>=0.15.0",
@@ -58,7 +58,7 @@ lint.per-file-ignores."tests/**" = [
 
 [tool.mypy]
 files = ["src"]
-python_version = "3.11"         # Keep synchronized with .python-version
+python_version = "3.11"
 check_untyped_defs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true

@@ -3,22 +3,18 @@ default:
     @just --list
 
 setup:
-    uv sync
+    uv sync --locked
 
 # Read-only: lint, format and type checks.
 lint:
-    uv run ruff check .
-    uv run ruff format --check .
-    uv run mypy
+    uv run --locked ruff check --no-fix .
+    uv run --locked ruff format --check .
+    uv run --locked mypy
 
 # Apply lint fixes, then format.
 fmt:
-    uv run ruff check --fix-only .
-    uv run ruff format .
-
-# Extra arguments are forwarded to pytest.
-test *args:
-    uv run pytest --cov {{ args }}
+    uv run --locked ruff check --fix-only .
+    uv run --locked ruff format .
 
 install:
     uv tool install .
